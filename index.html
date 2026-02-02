@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Smart Attendance</title>
+  <title>Smart Attendance v2</title>
   <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@700&display=swap" rel="stylesheet">
   <style>
     body { margin: 0; font-family: 'Tajawal', sans-serif; background: #222; overflow: hidden; }
@@ -19,20 +19,29 @@
       border-radius: 20px; box-shadow: 0 0 100px rgba(0,0,0,0.5);
     }
 
-    /* The "Magic" Welcome Modal */
-    #welcome-modal {
+    /* The "Magic" Modal */
+    #modal {
       display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-      background: rgba(46, 204, 113, 0.95); /* Nice Green */
       z-index: 10; flex-direction: column; align-items: center; justify-content: center;
       color: white; text-align: center;
+      transition: background 0.3s;
     }
     
-    /* Big Success Icon instead of Photo */
-    .success-icon {
+    /* SUCCESS STATE (Green) */
+    .modal-success { background: rgba(46, 204, 113, 0.95); }
+    .modal-success .icon { color: #2ecc71; }
+    .modal-success .icon::after { content: '✔'; }
+
+    /* ERROR STATE (Red) */
+    .modal-error { background: rgba(231, 76, 60, 0.95); }
+    .modal-error .icon { color: #c0392b; }
+    .modal-error .icon::after { content: '✖'; }
+
+    /* The Icon Bubble */
+    .icon {
       font-size: 8rem; margin-bottom: 20px;
       width: 150px; height: 150px; line-height: 150px;
-      background: white; color: #2ecc71;
-      border-radius: 50%; display: inline-block;
+      background: white; border-radius: 50%; display: inline-block;
     }
     
     h1 { font-size: 5rem; margin: 0; text-shadow: 2px 2px 4px rgba(0,0,0,0.2); }
@@ -49,23 +58,24 @@
 
   <canvas id="canvas" hidden></canvas>
 
-  <div id="welcome-modal">
-    <div class="success-icon">✔</div>
-    <h1 id="user-name">Welcome!</h1>
-    <p>تم تسجيل الحضور</p>
+  <div id="modal">
+    <div class="icon"></div>
+    <h1 id="user-name">...</h1>
+    <p id="status-text">...</p>
   </div>
 
   <script>
-    // --- PASTE YOUR NEW APP URL HERE ---
+    // --- PASTE YOUR URL HERE ---
     const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxN5n-4o6Oyh1X1VdpCi9B6H0wslLwApSccbv81bGg2H4SfmrrUYpZrEnPgxkjXOJk/exec';
     
     const video = document.getElementById("video");
     const canvasElement = document.getElementById("canvas");
     const canvas = canvasElement.getContext("2d");
-    const modal = document.getElementById("welcome-modal");
+    const modal = document.getElementById("modal");
     
     let isScanning = true;
 
+    // 1. Setup Camera
     navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } }).then(function(stream) {
       video.srcObject = stream;
       video.setAttribute("playsinline", true);
@@ -75,11 +85,17 @@
 
     function tick() {
       if (video.readyState === video.HAVE_ENOUGH_DATA && isScanning) {
-        canvasElement.height = video.videoHeight;
-        canvasElement.width = video.videoWidth;
+        // PERFORMANCE HACK: Scale down the processing canvas for speed
+        // We set the canvas to a fixed small width (e.g., 500px)
+        const scale = 500 / video.videoWidth; 
+        canvasElement.width = 500;
+        canvasElement.height = video.videoHeight * scale;
+
         canvas.drawImage(video, 0, 0, canvasElement.width, canvasElement.height);
         
         var imageData = canvas.getImageData(0, 0, canvasElement.width, canvasElement.height);
+        
+        // "inversionAttempts: dontInvert" makes it strictly look for standard black-on-white QRs (Faster)
         var code = jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts: "dontInvert" });
 
         if (code) {
@@ -92,34 +108,46 @@
     function handleScan(id) {
       isScanning = false;
       
+      // Send to Google Sheets
       fetch(SCRIPT_URL, {
         method: "POST",
         body: JSON.stringify({ id: id })
       })
       .then(response => response.json())
       .then(data => {
-        // If unknown, we show a different message
         if(data.status === 'success') {
-          showWelcome("أهلاً " + data.name);
+          showModal("success", "أهلاً " + data.name, "تم تسجيل الحضور");
         } else {
-          showWelcome("بطاقة غير معروفة"); // Unknown Card
+          showModal("error", "غير معروف", "هذه البطاقة غير مسجلة"); // Unknown Card
         }
       })
       .catch(error => {
         console.error('Error:', error);
-        isScanning = true; 
+        // If internet fails, show red error
+        showModal("error", "خطأ اتصال", "تأكد من الإنترنت");
       });
     }
 
-    function showWelcome(text) {
-      document.getElementById("user-name").innerText = text;
+    function showModal(type, title, subtitle) {
+      const nameEl = document.getElementById("user-name");
+      const statusEl = document.getElementById("status-text");
+
+      // Reset Classes
+      modal.className = ""; 
+      
+      // Add new class (modal-success or modal-error)
+      modal.classList.add("modal-" + type);
+      
+      nameEl.innerText = title;
+      statusEl.innerText = subtitle;
+      
       modal.style.display = "flex";
 
-      // Hide after 2.5 seconds (slightly faster now)
+      // Hide after 3 seconds
       setTimeout(() => {
         modal.style.display = "none";
         isScanning = true;
-      }, 2500);
+      }, 3000);
     }
   </script>
 </body>
