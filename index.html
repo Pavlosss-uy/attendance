@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Smart Attendance</title>
+  <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@700&display=swap" rel="stylesheet">
+  <style>
+    body { margin: 0; font-family: 'Tajawal', sans-serif; background: #222; overflow: hidden; }
+    
+    /* Camera Feed */
+    #video-container { position: relative; width: 100vw; height: 100vh; }
+    video { width: 100%; height: 100%; object-fit: cover; }
+    
+    /* Scan Zone Box */
+    #scan-overlay {
+      position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+      width: 300px; height: 300px; border: 4px solid rgba(255, 255, 255, 0.5);
+      border-radius: 20px; box-shadow: 0 0 100px rgba(0,0,0,0.5);
+    }
+
+    /* The "Magic" Welcome Modal */
+    #welcome-modal {
+      display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(46, 204, 113, 0.95); /* Nice Green */
+      z-index: 10; flex-direction: column; align-items: center; justify-content: center;
+      color: white; text-align: center;
+    }
+    
+    /* Big Success Icon instead of Photo */
+    .success-icon {
+      font-size: 8rem; margin-bottom: 20px;
+      width: 150px; height: 150px; line-height: 150px;
+      background: white; color: #2ecc71;
+      border-radius: 50%; display: inline-block;
+    }
+    
+    h1 { font-size: 5rem; margin: 0; text-shadow: 2px 2px 4px rgba(0,0,0,0.2); }
+    p { font-size: 2.5rem; margin-top: 10px; opacity: 0.9; }
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+</head>
+<body>
+
+  <div id="video-container">
+    <video id="video" playsinline></video>
+    <div id="scan-overlay"></div>
+  </div>
+
+  <canvas id="canvas" hidden></canvas>
+
+  <div id="welcome-modal">
+    <div class="success-icon">✔</div>
+    <h1 id="user-name">Welcome!</h1>
+    <p>تم تسجيل الحضور</p>
+  </div>
+
+  <script>
+    // --- PASTE YOUR NEW APP URL HERE ---
+    const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxN5n-4o6Oyh1X1VdpCi9B6H0wslLwApSccbv81bGg2H4SfmrrUYpZrEnPgxkjXOJk/exec';
+    
+    const video = document.getElementById("video");
+    const canvasElement = document.getElementById("canvas");
+    const canvas = canvasElement.getContext("2d");
+    const modal = document.getElementById("welcome-modal");
+    
+    let isScanning = true;
+
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } }).then(function(stream) {
+      video.srcObject = stream;
+      video.setAttribute("playsinline", true);
+      video.play();
+      requestAnimationFrame(tick);
+    });
+
+    function tick() {
+      if (video.readyState === video.HAVE_ENOUGH_DATA && isScanning) {
+        canvasElement.height = video.videoHeight;
+        canvasElement.width = video.videoWidth;
+        canvas.drawImage(video, 0, 0, canvasElement.width, canvasElement.height);
+        
+        var imageData = canvas.getImageData(0, 0, canvasElement.width, canvasElement.height);
+        var code = jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts: "dontInvert" });
+
+        if (code) {
+          handleScan(code.data);
+        }
+      }
+      requestAnimationFrame(tick);
+    }
+
+    function handleScan(id) {
+      isScanning = false;
+      
+      fetch(SCRIPT_URL, {
+        method: "POST",
+        body: JSON.stringify({ id: id })
+      })
+      .then(response => response.json())
+      .then(data => {
+        // If unknown, we show a different message
+        if(data.status === 'success') {
+          showWelcome("أهلاً " + data.name);
+        } else {
+          showWelcome("بطاقة غير معروفة"); // Unknown Card
+        }
+      })
+      .catch(error => {
+        console.error('Error:', error);
+        isScanning = true; 
+      });
+    }
+
+    function showWelcome(text) {
+      document.getElementById("user-name").innerText = text;
+      modal.style.display = "flex";
+
+      // Hide after 2.5 seconds (slightly faster now)
+      setTimeout(() => {
+        modal.style.display = "none";
+        isScanning = true;
+      }, 2500);
+    }
+  </script>
+</body>
+</html>
