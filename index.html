@@ -76,7 +76,7 @@
     let isScanning = true;
 
     // 1. Setup Camera
-    navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } }).then(function(stream) {
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } }).then(function(stream) {
       video.srcObject = stream;
       video.setAttribute("playsinline", true);
       video.play();
@@ -152,3 +152,4 @@
   </script>
 </body>
 </html>
+
