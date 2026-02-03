@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Get My QR Code</title>
+  <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@500;700&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Tajawal', sans-serif; background: #f4f4f9; display: flex; flex-direction: column; align-items: center; padding: 20px; text-align: center; }
+    
+    .card { background: white; padding: 30px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 100%; max-width: 400px; }
+    
+    h1 { margin-bottom: 20px; color: #333; }
+    
+    select { width: 100%; padding: 15px; font-size: 18px; border: 2px solid #ddd; border-radius: 10px; margin-bottom: 20px; font-family: 'Tajawal', sans-serif; background: white; }
+    
+    button { width: 100%; padding: 15px; background: #2ecc71; color: white; border: none; border-radius: 10px; font-size: 20px; cursor: pointer; font-family: 'Tajawal', sans-serif; transition: 0.2s; }
+    button:hover { background: #27ae60; }
+    button:disabled { background: #ccc; }
+
+    #qr-container { margin-top: 30px; display: none; flex-direction: column; align-items: center; }
+    #qr-image { width: 250px; height: 250px; border: 1px solid #ddd; border-radius: 10px; }
+    
+    .save-hint { margin-top: 10px; color: #777; font-size: 14px; }
+  </style>
+</head>
+<body>
+
+  <div class="card">
+    <h1>احصل على الـ QR الخاص بك</h1>
+    
+    <p id="loading">جاري تحميل الأسماء...</p>
+
+    <div id="form-area" style="display:none;">
+      <select id="student-select">
+        <option value="" disabled selected>-- اختر اسمك من هنا --</option>
+      </select>
+      
+      <button onclick="showQR()">إظهار الكود</button>
+    </div>
+
+    <div id="qr-container">
+      <img id="qr-image" src="" alt="QR Code">
+      <p class="save-hint">يمكنك أخذ "سكرين شوت" لهذا الكود</p>
+    </div>
+  </div>
+
+  <script>
+    // --- PASTE YOUR SAME SCRIPT URL HERE ---
+    const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxN5n-4o6Oyh1X1VdpCi9B6H0wslLwApSccbv81bGg2H4SfmrrUYpZrEnPgxkjXOJk/exec';
+
+    const select = document.getElementById("student-select");
+    const loading = document.getElementById("loading");
+    const formArea = document.getElementById("form-area");
+    const qrContainer = document.getElementById("qr-container");
+    const qrImage = document.getElementById("qr-image");
+
+    // 1. Fetch names from Google Sheet on load
+    fetch(SCRIPT_URL)
+      .then(response => response.json())
+      .then(data => {
+        // Populate Dropdown
+        data.forEach(student => {
+          const option = document.createElement("option");
+          option.value = student.id; // The ID (e.g., 101)
+          option.text = student.name; // The Name (e.g., Grandpa Ali)
+          select.appendChild(option);
+        });
+        
+        // Show Form, Hide Loading
+        loading.style.display = "none";
+        formArea.style.display = "block";
+      })
+      .catch(error => {
+        loading.innerText = "حدث خطأ في تحميل الأسماء";
+        console.error(error);
+      });
+
+    // 2. Generate QR Code
+    function showQR() {
+      const studentId = select.value;
+      if (!studentId) return alert("الرجاء اختيار اسمك أولاً");
+
+      // Use the free API to generate the image
+      const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${studentId}`;
+      
+      qrImage.src = qrUrl;
+      qrContainer.style.display = "flex";
+    }
+  </script>
+
+</body>
+</html>
