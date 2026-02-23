@@ -105,25 +105,26 @@
       requestAnimationFrame(tick);
     }
 
-    function handleScan(id) {
+function handleScan(id) {
       isScanning = false;
       
-      // Send to Google Sheets
       fetch(SCRIPT_URL, {
         method: "POST",
-        body: JSON.stringify({ id: id })
+        body: JSON.stringify({ id: id }),
+        // Added this header to force Google to accept the data easily
+        headers: { "Content-Type": "text/plain;charset=utf-8" } 
       })
       .then(response => response.json())
       .then(data => {
         if(data.status === 'success') {
           showModal("success", "أهلاً " + data.name, "تم تسجيل الحضور");
         } else {
-          showModal("error", "غير معروف", "هذه البطاقة غير مسجلة"); // Unknown Card
+          // THIS IS THE FIX: It will now show the REAL error from Google!
+          showModal("error", "تنبيه", data.message || "البطاقة غير مسجلة"); 
         }
       })
       .catch(error => {
         console.error('Error:', error);
-        // If internet fails, show red error
         showModal("error", "خطأ اتصال", "تأكد من الإنترنت");
       });
     }
@@ -152,6 +153,7 @@
   </script>
 </body>
 </html>
+
 
 
 
