@@ -55,15 +55,20 @@
     const qrContainer = document.getElementById("qr-container");
     const qrImage = document.getElementById("qr-image");
 
-    // 1. Fetch names from Google Sheet on load
+// 1. Fetch names from Google Sheet on load
     fetch(SCRIPT_URL)
       .then(response => response.json())
       .then(data => {
+        // CHECK: If data is an error object instead of an array
+        if (!Array.isArray(data)) {
+          throw new Error(data.message || "Received invalid data format");
+        }
+
         // Populate Dropdown
         data.forEach(student => {
           const option = document.createElement("option");
-          option.value = student.id; // The ID (e.g., 101)
-          option.text = student.name; // The Name (e.g., Grandpa Ali)
+          option.value = student.id; 
+          option.text = student.name; 
           select.appendChild(option);
         });
         
@@ -72,7 +77,7 @@
         formArea.style.display = "block";
       })
       .catch(error => {
-        loading.innerText = "حدث خطأ في تحميل الأسماء";
+        loading.innerText = "Error: " + error.message;
         console.error(error);
       });
 
